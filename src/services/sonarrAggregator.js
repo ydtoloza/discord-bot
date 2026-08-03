@@ -1,6 +1,5 @@
-const { sendImage, sendText } = require('./discord');
+const { sendEmbed } = require('./discord');
 const { formatSonarrMessage, getSonarrLogTitle } = require('../formatters/sonarrFormatter');
-const { getImageMedia, formatEpisodeCode } = require('../utils/helpers');
 
 const pendingWebhooks = new Map();
 const AGGREGATION_DELAY_MS = 10000; // 10 seconds
@@ -46,8 +45,8 @@ async function processAggregatedPayload(key) {
   }
 
   try {
-    const message = await formatSonarrMessage(basePayload);
-    if (!message) return;
+    const embed = await formatSonarrMessage(basePayload);
+    if (!embed) return;
 
     if (allEpisodes.length > 1) {
       console.log(`[Sonarr] Procesando ${allEpisodes.length} episodios agregados para ${basePayload.series?.title || 'Unknown'}`);
@@ -55,13 +54,7 @@ async function processAggregatedPayload(key) {
       console.log(`[Sonarr] ${getSonarrLogTitle(basePayload)}`);
     }
 
-    const image = getImageMedia(basePayload.series?.images || basePayload.remoteEpisode?.series?.images, basePayload.image);
-
-    if (image) {
-      await sendImage(image, message);
-    } else {
-      await sendText(message);
-    }
+    await sendEmbed(embed);
   } catch (error) {
     console.error('[Sonarr Aggregator]', error.message);
   }
@@ -104,17 +97,11 @@ function handleSonarrWebhook(payload) {
 
 async function processImmediate(payload) {
   try {
-    const message = await formatSonarrMessage(payload);
-    if (!message) return;
+    const embed = await formatSonarrMessage(payload);
+    if (!embed) return;
 
     console.log(`[Sonarr] ${getSonarrLogTitle(payload)}`);
-    const image = getImageMedia(payload.series?.images || payload.remoteEpisode?.series?.images, payload.image);
-
-    if (image) {
-      await sendImage(image, message);
-    } else {
-      await sendText(message);
-    }
+    await sendEmbed(embed);
   } catch (error) {
     console.error('[Sonarr Immediate]', error.message);
   }

@@ -5,49 +5,25 @@ function getWebhookUrl() {
   if (!url) {
     throw new Error('Missing DISCORD_WEBHOOK_URL environment variable');
   }
-  return url;
+  return url.trim();
 }
 
-async function sendText(text) {
+async function sendEmbed(embed) {
   const url = getWebhookUrl();
 
-  await axios.post(
-    url,
-    {
-      content: text
-    },
-    {
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      timeout: 10000
-    }
-  );
+  const payload = {
+    embeds: [embed]
+  };
 
-  console.log('[Discord] Message sent');
-}
-
-async function sendImage(mediaUrl, caption) {
-  const url = getWebhookUrl();
-
-  if (!mediaUrl) {
-    throw new Error('Missing image media URL');
+  // If there's content to ping roles etc, it could go here, but for now just embed.
+  if (embed.content) {
+    payload.content = embed.content;
+    delete embed.content;
   }
 
-  // Enviamos la imagen embebida en un embed para que se vea elegante
-  // junto con el texto en el contenido.
   await axios.post(
     url,
-    {
-      content: caption,
-      embeds: [
-        {
-          image: {
-            url: mediaUrl
-          }
-        }
-      ]
-    },
+    payload,
     {
       headers: {
         'Content-Type': 'application/json'
@@ -56,10 +32,9 @@ async function sendImage(mediaUrl, caption) {
     }
   );
 
-  console.log('[Discord] Image and message sent');
+  console.log('[Discord] Embed message sent');
 }
 
 module.exports = {
-  sendImage,
-  sendText
+  sendEmbed
 };

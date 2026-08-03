@@ -1,4 +1,4 @@
-const { compactLines, formatBytes, formatEpisodeCode, getQualityLabel, translateText } = require('../utils/helpers');
+const { formatEpisodeCode, getQualityLabel, translateText } = require('../utils/helpers');
 const { getTmdbSeriesOverview } = require('../services/tmdb');
 
 const SUPPORTED_EVENTS = new Set([
@@ -48,64 +48,71 @@ function isSeriesPackage(episodes) {
   return episodes.length > 1;
 }
 
-function formatSeriesMessage(series) {
-  const year = series.year ? ` (${series.year})` : '';
-  const status = series.status ? `📊 ${series.status}` : '';
-  const network = series.network ? `📡 ${series.network}` : '';
-
-  return compactLines([
-    '📺 **Nueva serie**',
-    '',
-    `${series.title}${year}`,
-    '',
-    status,
-    network
-  ]).join('\n');
-}
-
 async function formatSonarrMessage(payload) {
+  if (payload.eventType === 'Test') {
+    return {
+      title: '✅ Test de Sonarr Exitoso',
+      description: 'El webhook de Sonarr está conectado y enviando notificaciones correctamente a Discord.',
+      color: 0x0088ff // Azul para Sonarr
+    };
+  }
+
   const series = payload.series || payload.remoteEpisode?.series || {};
   const episodes = getEpisodes(payload);
   const episodeFile = getEpisodeFile(payload);
   const mediaInfo = episodeFile.mediaInfo || {};
-  if (payload.eventType === 'Test') {
-    return compactLines([
-      '✅ **Test de Sonarr Exitoso**',
-      '',
-      'El webhook de Sonarr está conectado y enviando notificaciones correctamente a Discord.'
-    ]).join('\n');
-  }
-
   const title = series.title;
 
   if (!title) {
-    return '';
+    return null;
   }
 
+  // Buscar imágenes
+  const images = series.images || [];
+  let imageUrl = null;
+  const preferredImage = images.find((img) => ['poster', 'cover'].includes(String(img.coverType).toLowerCase())) || images[0];
+  if (preferredImage) {
+    imageUrl = preferredImage.remoteUrl || preferredImage.url;
+  }
+
+  const year = series.year ? ` (${series.year})` : '';
+
   if (episodes.length === 0 && ['SeriesAdd', 'SeriesAdded'].includes(payload.eventType)) {
-    return formatSeriesMessage(series);
+    const embed = {
+      title: '📺 Nueva serie agregada',
+      description: `**${title}${year}**\n\n${series.status ? `Estado: ${series.status}` : ''}`,
+      color: 0x0088ff,
+      fields: []
+    };
+    if (imageUrl) embed.image = { url: imageUrl };
+    return embed;
   }
 
   if (episodes.length === 0) {
-    return '';
+    return null;
   }
 
   const quality = getQualityLabel(episodeFile.quality, episodeFile.qualityCutoffNotMet);
-  const header = episodes.length > 1 ? '📺 **Nuevos episodios**' : '📺 **Nuevo episodio**';
   const useSeriesOverview = isSeriesPackage(episodes);
   const rawEpisodeOverview = episodes[0]?.overview;
   
   const translatedEpisodeOverview = rawEpisodeOverview ? await translateText(rawEpisodeOverview) : '';
-
   const finalOverview = useSeriesOverview
     ? await getTmdbSeriesOverview(series.tmdbId || series.tmdbid)
     : translatedEpisodeOverview;
   
   let episodesLines = [];
+  let headerTitle = '';
+
+  if (payload.eventType === 'Grab') {
+    headerTitle = '📥 Descarga Iniciada';
+  } else {
+    headerTitle = episodes.length > 1 ? '📺 Nuevos episodios' : '📺 Nuevo episodio';
+  }
+
   if (episodes.length === 1) {
     episodesLines = [formatEpisodeLine(episodes[0])];
   } else {
-    // Si hay multiples episodios
     const seasons = new Set(episodes.map(e => e.seasonNumber));
     if (seasons.size === 1) {
       episodesLines = [`${episodes.length} episodios de la Temporada ${[...seasons][0]} agregados`];
@@ -114,30 +121,35 @@ async function formatSonarrMessage(payload) {
     }
   }
 
-  if (payload.eventType === 'Grab') {
-    return compactLines([
-      '📥 **Descarga Iniciada**',
-      '',
-      title,
-      '',
-      ...episodesLines,
-      '',
-      finalOverview ? `${finalOverview}` : '',
-      finalOverview ? '' : ''
-    ]).join('\n');
+  const embed = {
+    title: headerTitle,
+    description: `**${title}**\n\n${episodesLines.join('\n')}\n\n${finalOverview || ''}`,
+    color: 0x0088ff,
+    fields: []
+  };
+
+  if (imageUrl) {
+    embed.image = { url: imageUrl };
   }
 
-  return compactLines([
-    header,
-    '',
-    title,
-    '',
-    ...episodesLines,
-    '',
-    finalOverview ? `${finalOverview}` : '',
-    finalOverview ? '' : '',
-    quality ? `🎞 ${quality}` : ''
-  ]).join('\n');
+  if (quality) {
+    embed.fields.push({
+      name: '🎞 Calidad',
+      value: quality,
+      inline: true
+    });
+  }
+
+  if (mediaInfo.videoBitrate) {
+    const kbps = Math.round(mediaInfo.videoBitrate / 1000);
+    embed.fields.push({
+      name: '📶 Bitrate',
+      value: `${kbps} Kbps`,
+      inline: true
+    });
+  }
+
+  return embed;
 }
 
 module.exports = {

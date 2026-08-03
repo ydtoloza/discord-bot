@@ -8,7 +8,7 @@ function getTmdbConfig() {
   const ttlMinutes = Number(process.env.TMDB_CACHE_TTL_MINUTES);
 
   return {
-    apiKey: process.env.TMDB_API_KEY,
+    apiKey: process.env.TMDB_API_KEY ? process.env.TMDB_API_KEY.trim() : null,
     language: process.env.TMDB_LANGUAGE || DEFAULT_LANGUAGE,
     ttlMinutes: Number.isFinite(ttlMinutes) && ttlMinutes > 0
       ? ttlMinutes

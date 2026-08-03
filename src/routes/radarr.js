@@ -1,7 +1,6 @@
 const express = require('express');
-const { sendImage, sendText } = require('../services/discord');
+const { sendEmbed } = require('../services/discord');
 const { formatRadarrMessage, getRadarrLogTitle, isRadarrEventSupported } = require('../formatters/radarrFormatter');
-const { getImageMedia } = require('../utils/helpers');
 
 const router = express.Router();
 
@@ -18,20 +17,14 @@ async function handleRadarrWebhook(req, res) {
   }
 
   try {
-    const message = await formatRadarrMessage(payload);
-    if (!message) {
+    const embed = await formatRadarrMessage(payload);
+    if (!embed) {
       return;
     }
 
     console.log(`[Radarr] ${getRadarrLogTitle(payload)}`);
-    const image = getImageMedia(payload.movie?.images || payload.remoteMovie?.movie?.images, payload.image);
-
-    if (image) {
-      await sendImage(image, message);
-      return;
-    }
-
-    await sendText(message);
+    
+    await sendEmbed(embed);
   } catch (error) {
     console.error('[Radarr]', error.message);
   }

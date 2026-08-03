@@ -1,4 +1,4 @@
-const { compactLines, getQualityLabel, translateText } = require('../utils/helpers');
+const { getQualityLabel, translateText } = require('../utils/helpers');
 
 const SUPPORTED_EVENTS = new Set([
   'Download',
@@ -22,46 +22,68 @@ function getRadarrLogTitle(payload) {
 }
 
 async function formatRadarrMessage(payload) {
+  if (payload.eventType === 'Test') {
+    return {
+      title: '✅ Test de Radarr Exitoso',
+      description: 'El webhook de Radarr está conectado y enviando notificaciones correctamente a Discord.',
+      color: 0xffa500 // Naranja para Radarr
+    };
+  }
+
   const movie = payload.movie || payload.remoteMovie?.movie || {};
   const movieFile = getMovieFile(payload);
   const mediaInfo = movieFile.mediaInfo || {};
-  if (payload.eventType === 'Test') {
-    return compactLines([
-      '✅ **Test de Radarr Exitoso**',
-      '',
-      'El webhook de Radarr está conectado y enviando notificaciones correctamente a Discord.'
-    ]).join('\n');
-  }
-
   const title = movie.title;
 
   if (!title) {
-    return '';
+    return null;
   }
 
   const year = movie.year ? ` (${movie.year})` : '';
   const overview = movie.overview ? await translateText(movie.overview) : '';
   const quality = getQualityLabel(movieFile.quality);
-
-  if (payload.eventType === 'Grab') {
-    return compactLines([
-      '📥 **Descarga Iniciada**',
-      '',
-      `🍿 ${title}${year}`,
-      '',
-      quality ? `🎞 ${quality}` : ''
-    ]).join('\n');
+  
+  // Buscar imágenes
+  const images = movie.images || [];
+  let imageUrl = null;
+  const preferredImage = images.find((img) => ['poster', 'cover'].includes(String(img.coverType).toLowerCase())) || images[0];
+  if (preferredImage) {
+    imageUrl = preferredImage.remoteUrl || preferredImage.url;
   }
 
-  return compactLines([
-    '🎬 **Nueva película**',
-    '',
-    `🍿 ${title}${year}`,
-    '',
-    overview ? `${overview}` : '',
-    '',
-    quality ? `🎞 ${quality}` : ''
-  ]).join('\n');
+  let embedTitle = payload.eventType === 'Grab' ? '📥 Descarga Iniciada' : '🎬 Nueva película';
+  
+  const embed = {
+    title: embedTitle,
+    description: `**${title}${year}**\n\n${overview}`,
+    color: 0xffa500,
+    fields: []
+  };
+
+  if (imageUrl) {
+    embed.image = { url: imageUrl };
+  }
+
+  if (quality) {
+    embed.fields.push({
+      name: '🎞 Calidad',
+      value: quality,
+      inline: true
+    });
+  }
+
+  // Bitrate if available (usually in bits or bytes per second depending on Radarr version)
+  // Let's check typical Radarr mediaInfo fields: videoBitrate
+  if (mediaInfo.videoBitrate) {
+    const kbps = Math.round(mediaInfo.videoBitrate / 1000);
+    embed.fields.push({
+      name: '📶 Bitrate',
+      value: `${kbps} Kbps`,
+      inline: true
+    });
+  }
+
+  return embed;
 }
 
 module.exports = {
