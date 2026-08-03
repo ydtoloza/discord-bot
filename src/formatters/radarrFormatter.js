@@ -83,6 +83,19 @@ async function formatRadarrMessage(payload) {
     });
   }
 
+  let audios = movieFile.languages && movieFile.languages.length > 0
+    ? movieFile.languages.map(l => l.name).join(', ')
+    : (mediaInfo.audioLanguages ? mediaInfo.audioLanguages.join(', ').toUpperCase() : '');
+    
+  let subs = mediaInfo.subtitles ? mediaInfo.subtitles.join(', ').toUpperCase() : '';
+
+  if (audios) {
+    embed.fields.push({ name: '🔊 Audio', value: audios, inline: true });
+  }
+  if (subs) {
+    embed.fields.push({ name: '💬 Subs', value: subs, inline: true });
+  }
+
   return embed;
 }
 

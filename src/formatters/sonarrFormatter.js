@@ -149,6 +149,19 @@ async function formatSonarrMessage(payload) {
     });
   }
 
+  let audios = episodeFile.languages && episodeFile.languages.length > 0
+    ? episodeFile.languages.map(l => l.name).join(', ')
+    : (mediaInfo.audioLanguages ? mediaInfo.audioLanguages.join(', ').toUpperCase() : '');
+    
+  let subs = mediaInfo.subtitles ? mediaInfo.subtitles.join(', ').toUpperCase() : '';
+
+  if (audios) {
+    embed.fields.push({ name: '🔊 Audio', value: audios, inline: true });
+  }
+  if (subs) {
+    embed.fields.push({ name: '💬 Subs', value: subs, inline: true });
+  }
+
   return embed;
 }
 
