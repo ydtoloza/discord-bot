@@ -1,4 +1,4 @@
-const { getQualityLabel, translateText } = require('../utils/helpers');
+const { getQualityLabel, translateText, parseLanguages, mapLanguageCode } = require('../utils/helpers');
 
 const SUPPORTED_EVENTS = new Set([
   'Download',
@@ -83,11 +83,8 @@ async function formatRadarrMessage(payload) {
     });
   }
 
-  let audios = movieFile.languages && movieFile.languages.length > 0
-    ? movieFile.languages.map(l => l.name).join(', ')
-    : (mediaInfo.audioLanguages ? mediaInfo.audioLanguages.join(', ').toUpperCase() : '');
-    
-  let subs = mediaInfo.subtitles ? mediaInfo.subtitles.join(', ').toUpperCase() : '';
+  let audios = parseLanguages(movieFile.languages, mediaInfo.audioLanguages);
+  let subs = mediaInfo.subtitles ? mediaInfo.subtitles.map(mapLanguageCode).join(', ') : '';
 
   if (audios) {
     embed.fields.push({ name: '🔊 Audio', value: audios, inline: true });

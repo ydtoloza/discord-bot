@@ -1,4 +1,4 @@
-const { formatEpisodeCode, getQualityLabel, translateText } = require('../utils/helpers');
+const { formatEpisodeCode, getQualityLabel, translateText, parseLanguages, mapLanguageCode } = require('../utils/helpers');
 const { getTmdbSeriesOverview } = require('../services/tmdb');
 
 const SUPPORTED_EVENTS = new Set([
@@ -149,11 +149,8 @@ async function formatSonarrMessage(payload) {
     });
   }
 
-  let audios = episodeFile.languages && episodeFile.languages.length > 0
-    ? episodeFile.languages.map(l => l.name).join(', ')
-    : (mediaInfo.audioLanguages ? mediaInfo.audioLanguages.join(', ').toUpperCase() : '');
-    
-  let subs = mediaInfo.subtitles ? mediaInfo.subtitles.join(', ').toUpperCase() : '';
+  let audios = parseLanguages(episodeFile.languages, mediaInfo.audioLanguages);
+  let subs = mediaInfo.subtitles ? mediaInfo.subtitles.map(mapLanguageCode).join(', ') : '';
 
   if (audios) {
     embed.fields.push({ name: '🔊 Audio', value: audios, inline: true });

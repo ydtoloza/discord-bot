@@ -9,6 +9,28 @@ const port = process.env.PORT || 5001;
 
 app.use(express.json({ limit: '10mb' }));
 
+// Basic Auth Middleware
+app.use((req, res, next) => {
+  if (req.path === '/health') return next();
+
+  const user = process.env.WEBHOOK_USERNAME;
+  const pass = process.env.WEBHOOK_PASSWORD;
+
+  if (!user || !pass) {
+    return next(); // Si no hay usuario/pass configurado, dejar pasar
+  }
+
+  const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
+  const [login, password] = Buffer.from(b64auth, 'base64').toString().split(':');
+
+  if (login && password && login === user && password === pass) {
+    return next();
+  }
+
+  res.set('WWW-Authenticate', 'Basic realm="401"');
+  res.status(401).send('Authentication required.');
+});
+
 app.get('/health', (req, res) => {
   res.status(200).json({ ok: true });
 });

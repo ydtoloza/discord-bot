@@ -139,11 +139,65 @@ function getImageMedia(images, fallbackImage) {
   return preferred.remoteUrl || preferred.url || '';
 }
 
+function mapLanguageCode(code) {
+  if (!code) return '';
+  const lower = String(code).toLowerCase();
+  
+  const map = {
+    'spa': 'Español (Latinoamérica)',
+    'es': 'Español (Latinoamérica)',
+    'spanish': 'Español (Latinoamérica)',
+    'eng': 'Inglés',
+    'en': 'Inglés',
+    'english': 'Inglés',
+    'jpn': 'Japonés',
+    'ja': 'Japonés',
+    'japanese': 'Japonés',
+    'myn': 'Maya',
+    'fre': 'Francés',
+    'fra': 'Francés',
+    'french': 'Francés',
+    'ger': 'Alemán',
+    'deu': 'Alemán',
+    'german': 'Alemán',
+    'ita': 'Italiano',
+    'italian': 'Italiano',
+    'por': 'Portugués',
+    'portuguese': 'Portugués',
+    'kor': 'Coreano',
+    'ko': 'Coreano',
+    'korean': 'Coreano',
+    'chi': 'Chino',
+    'zho': 'Chino',
+    'chinese': 'Chino',
+    'rus': 'Ruso',
+    'russian': 'Ruso'
+  };
+
+  return map[lower] || code.toUpperCase();
+}
+
+function parseLanguages(languagesArr, mediaInfoLangs) {
+  // Prefer mediaInfoLangs as it usually contains the actual MKV tracks
+  let langs = mediaInfoLangs && mediaInfoLangs.length > 0 ? mediaInfoLangs : [];
+  if (langs.length === 0 && languagesArr && languagesArr.length > 0) {
+    langs = languagesArr.map(l => l.name);
+  }
+  
+  if (!langs || langs.length === 0) return '';
+  
+  // Deduplicate and map
+  const unique = [...new Set(langs)];
+  return unique.map(mapLanguageCode).join(', ');
+}
+
 module.exports = {
   compactLines,
   formatBytes,
   formatEpisodeCode,
   getImageMedia,
   getQualityLabel,
-  translateText
+  translateText,
+  mapLanguageCode,
+  parseLanguages
 };
