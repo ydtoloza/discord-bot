@@ -1,5 +1,6 @@
 const { sendEmbed } = require('./discord');
 const { formatSonarrMessage, getSonarrLogTitle } = require('../formatters/sonarrFormatter');
+const { isDuplicate } = require('./deduplicator');
 
 const pendingWebhooks = new Map();
 const AGGREGATION_DELAY_MS = 10000; // 10 seconds
@@ -70,12 +71,39 @@ function handleSonarrWebhook(payload) {
   }
 
   const episodes = getEpisodes(payload);
+  const type = payload.eventType;
+  const tvdb = payload.series?.tvdbId || payload.remoteEpisode?.series?.tvdbId || payload.series?.id || '0';
+  let quality = payload.episodeFile?.quality || payload.remoteEpisode?.episodeFile?.quality || '0';
+
+  if (type === 'SeriesAdd' || type === 'SeriesAdded') {
+    const fingerprint = `S_${tvdb}_${type}`;
+    if (isDuplicate(fingerprint)) {
+      console.log(`[Sonarr] Duplicate ignored: ${fingerprint}`);
+      return;
+    }
+  }
+
+  // Solo procesamos episodios que no sean duplicados
+  const uniqueEpisodes = episodes.filter(ep => {
+    const fingerprint = `S_${tvdb}_${ep.seasonNumber}x${ep.episodeNumber}_${quality}_${type}`;
+    
+    if (type !== 'Test' && isDuplicate(fingerprint)) {
+      console.log(`[Sonarr] Duplicate ignored: ${fingerprint}`);
+      return false;
+    }
+    return true;
+  });
+
+  if (type !== 'Test' && uniqueEpisodes.length === 0 && episodes.length > 0) {
+    // Si todos los episodios de este webhook eran duplicados, lo ignoramos entero.
+    return;
+  }
   
   if (pendingWebhooks.has(key)) {
     const data = pendingWebhooks.get(key);
     
     // Add new episodes avoiding duplicates by ID
-    for (const ep of episodes) {
+    for (const ep of uniqueEpisodes) {
       if (!data.allEpisodes.some(e => e.id === ep.id)) {
         data.allEpisodes.push(ep);
       }

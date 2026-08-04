@@ -5,6 +5,10 @@ services:
     restart: unless-stopped
     ports:
       - "5002:5001"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/usr/src/app/data
     environment:
       - PORT=5001
       - DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your-webhook-id/your-webhook-token
