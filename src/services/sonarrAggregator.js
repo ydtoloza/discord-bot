@@ -3,7 +3,9 @@ const { formatSonarrMessage, getSonarrLogTitle } = require('../formatters/sonarr
 const { isDuplicate } = require('./deduplicator');
 
 const pendingWebhooks = new Map();
-const AGGREGATION_DELAY_MS = 10000; // 10 seconds
+// Ventana deslizante (ms): cada webhook del mismo key reinicia el timer.
+// Configurable por .env; default 10 s para no cambiar el comportamiento previo.
+const AGGREGATION_DELAY_MS = Math.max(0, Number(process.env.AGGREGATION_DELAY_MS) || 10000);
 
 function getAggregationKey(payload) {
   const seriesId = payload.series?.id || payload.remoteEpisode?.series?.id;
